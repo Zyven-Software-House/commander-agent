@@ -1,0 +1,4 @@
+/commander-agent
+/dist/
+*.test
+*.out

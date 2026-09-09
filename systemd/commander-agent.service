@@ -1,0 +1,24 @@
+[Unit]
+Description=Commander monitoring agent
+Documentation=https://github.com/Zyven-Software-House/commander-agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/commander-agent/agent.env
+ExecStart=/usr/local/bin/commander-agent
+Restart=always
+RestartSec=10
+# Read-only view of the host; it only needs /proc, the docker socket and outbound HTTPS.
+ProtectSystem=strict
+ReadWritePaths=/etc/commander-agent
+ProtectHome=yes
+NoNewPrivileges=yes
+# needs to read every process's stats + talk to the docker socket
+SupplementaryGroups=docker
+MemoryMax=64M
+CPUQuota=15%
+
+[Install]
+WantedBy=multi-user.target
