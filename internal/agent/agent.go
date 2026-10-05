@@ -71,13 +71,21 @@ func (a *Agent) Run(ctx context.Context) {
 
 func (a *Agent) interval() time.Duration {
 	iv := a.cfg.Get().Intervals
+
+	slog.Info("calculating interval",
+		"mode", a.mode,
+		"live", iv.Live,
+		"background", iv.Background,
+		"heartbeat", iv.Heartbeat,
+	)
+
 	switch a.mode {
-	case ModeLive:
-		return dur(iv.Live, 2)
-	case ModeOff:
-		return dur(iv.Heartbeat, 15)
-	default:
-		return dur(iv.Background, 60)
+		case ModeLive:
+			return dur(iv.Live, 2)
+		case ModeOff:
+			return dur(iv.Heartbeat, 15)
+		default:
+			return dur(iv.Background, 60)
 	}
 }
 
