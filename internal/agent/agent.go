@@ -101,8 +101,9 @@ func (a *Agent) interval() time.Duration {
 
 func (a *Agent) tick(ctx context.Context) {
 	started := time.Now()
+	slog.Info("tick started", "mode", a.mode)
 	defer func() {
-		slog.Debug("tick", "mode", a.mode, "duration", time.Since(started))
+		slog.Info("tick finished", "mode", a.mode, "duration", time.Since(started))
 	}()
 
 	cfg := a.cfg.Get()
