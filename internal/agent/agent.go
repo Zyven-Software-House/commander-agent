@@ -55,52 +55,55 @@ func (a *Agent) Run(ctx context.Context) {
 	// first contact
 	a.tick(ctx)
 
+	// A ticker, not a timer re-created after every tick: a timer rearmed only once tick() returns
+	// means a slow tick (e.g. a stalled HTTP call) pushes every following one back by exactly that
+	// much, collapsing live mode's cadence to "however long the last call took". A ticker keeps firing
+	// on its own fixed schedule underneath; since its channel only buffers one pending tick and drops
+	// the rest while nobody's reading it (see time.Ticker docs), a slow tick can delay the NEXT one but
+	// never queues up a backlog of them — effectively "skip ticks while one is still in flight" for
+	// free, with no goroutines and no risk of two ticks mutating agent state at once.
+	//
+	// Reset() is only called when the interval itself changed (a mode switch), not after every tick:
+	// resetting unconditionally would re-add tick()'s own duration on top of the interval every single
+	// time (a normally-fast ~0.3s tick would make a "2s" cadence run at ~2.3s), defeating the point of
+	// using a fixed-schedule ticker in the first place.
+	current := a.interval()
+	ticker := time.NewTicker(current)
+	defer ticker.Stop()
+
 	for {
-		d := a.interval()
-		t := time.NewTimer(d)
 		select {
 		case <-ctx.Done():
-			t.Stop()
 			slog.Info("shutting down", "mode", a.mode)
 			return
-		case <-t.C:
-			slog.Info("timer fired", "mode", a.mode)
+		case <-ticker.C:
 			a.tick(ctx)
+
+			if next := a.interval(); next != current {
+				current = next
+				ticker.Reset(current)
+			}
 		}
 	}
 }
 
 func (a *Agent) interval() time.Duration {
 	iv := a.cfg.Get().Intervals
-
-	slog.Info("calculating interval",
-		"mode", a.mode,
-		"live", iv.Live,
-		"background", iv.Background,
-		"heartbeat", iv.Heartbeat,
-	)
-
 	switch a.mode {
-		case ModeLive:
-			return dur(iv.Live, 2)
-		case ModeOff:
-			return dur(iv.Heartbeat, 15)
-		default:
-			return dur(iv.Background, 60)
+	case ModeLive:
+		return dur(iv.Live, 2)
+	case ModeOff:
+		return dur(iv.Heartbeat, 15)
+	default:
+		return dur(iv.Background, 60)
 	}
 }
 
 func (a *Agent) tick(ctx context.Context) {
-
 	started := time.Now()
-    defer func() {
-        slog.Info("tick finished",
-            "duration", time.Since(started),
-            "mode", a.mode,
-        )
-    }()
-
-	slog.Info("tick", "mode", a.mode)
+	defer func() {
+		slog.Debug("tick", "mode", a.mode, "duration", time.Since(started))
+	}()
 
 	cfg := a.cfg.Get()
 	beat := api.Beat{
@@ -125,12 +128,24 @@ func (a *Agent) tick(ctx context.Context) {
 		if len(samples) > maxBacklog {
 			samples = samples[len(samples)-maxBacklog:]
 		}
-		slog.Info("before ingest")
-		ctrl, err = a.api.Ingest(api.IngestBody{Beat: beat, Samples: samples, Alerts: al})
-		slog.Info("after ingest")
-		if err != nil {
+
+		// Live can't afford to retry a stalled request (see api.LiveCallOptions's docs): a sample
+		// that's late is just stale, and the point of the short timeout is to free the agent for its
+		// next tick, not to keep hammering a slow server. Background/heartbeat still retries.
+		opts := api.BackgroundCallOptions
+		if a.mode == ModeLive {
+			opts = api.LiveCallOptions
+		}
+
+		ctrl, err = a.api.Ingest(api.IngestBody{Beat: beat, Samples: samples, Alerts: al}, opts)
+		switch {
+		case err != nil && a.mode == ModeLive:
+			// Discard, don't backlog: a live sample is stale within ~2s, so carrying a failed one
+			// into the next tick (and bundling it with a fresh sample) buys nothing.
+			a.backlog = a.backlog[:0]
+		case err != nil:
 			a.backlog = samples // keep for next round
-		} else {
+		default:
 			a.backlog = a.backlog[:0]
 		}
 	}
