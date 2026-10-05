@@ -64,6 +64,7 @@ func (a *Agent) Run(ctx context.Context) {
 			slog.Info("shutting down", "mode", a.mode)
 			return
 		case <-t.C:
+			slog.Info("timer fired", "mode", a.mode)
 			a.tick(ctx)
 		}
 	}
@@ -90,6 +91,8 @@ func (a *Agent) interval() time.Duration {
 }
 
 func (a *Agent) tick(ctx context.Context) {
+	slog.Info("tick", "mode", a.mode)
+
 	cfg := a.cfg.Get()
 	beat := api.Beat{
 		AgentVersion:  a.version,
