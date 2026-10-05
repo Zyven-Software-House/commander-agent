@@ -15,7 +15,7 @@ persists the config to `/etc/commander-agent/config.json`.
 |---|---|---|
 | `off` | ~15 s heartbeat | nothing |
 | `background` | ~60 s | slow metrics, feeds alerts + the 1-min rollup |
-| `live` | ~3 s, streamed | everything (per-core CPU, docker stats) — only while someone watches the server in the panel |
+| `live` | ~2 s, streamed | everything (per-core CPU, docker stats) — only while someone watches the server in the panel |
 
 Alert thresholds are evaluated locally and sent with each push, so alerts work
 even when realtime is off.
