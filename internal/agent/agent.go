@@ -91,6 +91,15 @@ func (a *Agent) interval() time.Duration {
 }
 
 func (a *Agent) tick(ctx context.Context) {
+
+	started := time.Now()
+    defer func() {
+        slog.Info("tick finished",
+            "duration", time.Since(started),
+            "mode", a.mode,
+        )
+    }()
+
 	slog.Info("tick", "mode", a.mode)
 
 	cfg := a.cfg.Get()
@@ -116,8 +125,9 @@ func (a *Agent) tick(ctx context.Context) {
 		if len(samples) > maxBacklog {
 			samples = samples[len(samples)-maxBacklog:]
 		}
-
+		slog.Info("before ingest")
 		ctrl, err = a.api.Ingest(api.IngestBody{Beat: beat, Samples: samples, Alerts: al})
+		slog.Info("after ingest")
 		if err != nil {
 			a.backlog = samples // keep for next round
 		} else {
