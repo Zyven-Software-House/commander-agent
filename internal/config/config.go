@@ -50,7 +50,7 @@ type Block struct {
 func Default() Block {
 	var b Block
 	b.Version = 0
-	b.Intervals.Live = 3
+	b.Intervals.Live = 2
 	b.Intervals.Background = 60
 	b.Intervals.Heartbeat = 15
 	b.Collect.CPU = true

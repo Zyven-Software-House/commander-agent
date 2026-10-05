@@ -73,7 +73,7 @@ func (a *Agent) interval() time.Duration {
 	iv := a.cfg.Get().Intervals
 	switch a.mode {
 	case ModeLive:
-		return dur(iv.Live, 3)
+		return dur(iv.Live, 2)
 	case ModeOff:
 		return dur(iv.Heartbeat, 15)
 	default:
