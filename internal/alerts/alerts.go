@@ -153,12 +153,17 @@ func (e *Evaluator) Evaluate(s collect.Sample, cfg config.Block) []Alert {
 	}
 
 	// ---- containers ----
+	// RestartCount/OOMKilled only exist for containers matching config.Block.DockerWatch (they need an
+	// inspect call); with an empty watch list, every container here has them nil, so none of these
+	// container-level alerts fire — the host-level alerts above are unaffected either way.
 	if s.Docker != nil {
 		for _, c := range s.Docker.Containers {
-			prev, seen := e.restarts[c.Name]
-			e.restarts[c.Name] = c.RestartCount
-			if seen && c.RestartCount-prev >= 3 {
-				out = append(out, Alert{"container_restart_loop", crit, c.Name, map[string]any{"value": c.RestartCount}})
+			if c.RestartCount != nil {
+				prev, seen := e.restarts[c.Name]
+				e.restarts[c.Name] = *c.RestartCount
+				if seen && *c.RestartCount-prev >= 3 {
+					out = append(out, Alert{"container_restart_loop", crit, c.Name, map[string]any{"value": *c.RestartCount}})
+				}
 			}
 			if c.OOMKilled {
 				out = append(out, Alert{"container_oom", warn, c.Name, nil})

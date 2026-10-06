@@ -83,17 +83,23 @@ type DockerBlock struct {
 	Containers []Container `json:"containers,omitempty"`
 }
 
+// Container is always present from the one cheap /containers/json list call (id/name/image/status).
+// The rest (CPUPct..OOMKilled) are pointers, left nil unless this container matched config.Block's
+// DockerWatch — collecting them needs a stats+inspect call per container (see dockerClient.snapshot),
+// which the server never asks for by default, so "not collected" (nil/absent) has to be distinguishable
+// from "measured as zero".
 type Container struct {
-	ID           string  `json:"id"`
-	Name         string  `json:"name"`
-	CPUPct       float64 `json:"cpuPct"`
-	MemUsed      uint64  `json:"memUsed"`
-	MemLimit     uint64  `json:"memLimit"`
-	NetRxBps     float64 `json:"netRxBps"`
-	NetTxBps     float64 `json:"netTxBps"`
-	PIDs         uint64  `json:"pids"`
-	RestartCount int     `json:"restartCount"`
-	Health       string  `json:"health,omitempty"`
-	OOMKilled    bool    `json:"oomKilled"`
-	Status       string  `json:"status"`
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Image        string   `json:"image,omitempty"`
+	Status       string   `json:"status"`
+	CPUPct       *float64 `json:"cpuPct,omitempty"`
+	MemUsed      *uint64  `json:"memUsed,omitempty"`
+	MemLimit     *uint64  `json:"memLimit,omitempty"`
+	NetRxBps     *float64 `json:"netRxBps,omitempty"`
+	NetTxBps     *float64 `json:"netTxBps,omitempty"`
+	PIDs         *uint64  `json:"pids,omitempty"`
+	RestartCount *int     `json:"restartCount,omitempty"`
+	Health       string   `json:"health,omitempty"`
+	OOMKilled    bool     `json:"oomKilled,omitempty"`
 }

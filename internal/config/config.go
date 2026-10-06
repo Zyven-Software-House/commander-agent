@@ -42,7 +42,14 @@ type Block struct {
 		Docker  bool `json:"docker"`
 		Systemd bool `json:"systemd"`
 	} `json:"collect"`
-	Alerts map[string]Threshold `json:"alerts"`
+	// Per-container stats (cpu/mem/net, restart count, health) are only collected for containers
+	// matching one of these patterns — exact name, a trailing-"*" prefix, or "label:key" /
+	// "label:key=value". Empty (the default) means no per-container stats at all: with ~50 containers,
+	// collecting full stats+inspect for every one of them sequentially could take 50-100s by itself,
+	// stalling the whole tick. Every container still appears in the sample (id/name/image/status, one
+	// cheap /containers/json call) — only the heavier per-container numbers are gated by this.
+	DockerWatch []string              `json:"dockerWatch,omitempty"`
+	Alerts      map[string]Threshold  `json:"alerts"`
 }
 
 // Default mirrors the API's AgentConfig::default() so a brand-new agent behaves

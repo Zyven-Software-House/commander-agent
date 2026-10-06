@@ -92,7 +92,7 @@ func (c *Collector) Collect(b config.Block) Sample {
 		s.System = &System{FailedUnits: failedUnits()}
 	}
 	if b.Collect.Docker && c.docker != nil {
-		s.Docker = c.collectDocker(now)
+		s.Docker = c.collectDocker(now, b.DockerWatch)
 	}
 
 	c.lastAt = now
@@ -340,11 +340,11 @@ func failedUnits() []string {
 
 /* --------------------------------------------------------------- docker */
 
-func (c *Collector) collectDocker(now time.Time) *DockerBlock {
+func (c *Collector) collectDocker(now time.Time, watch []string) *DockerBlock {
 	if c.lastDocker != nil && now.Sub(c.lastDockerAt) < 10*time.Second {
 		return c.lastDocker
 	}
-	b := c.docker.snapshot()
+	b := c.docker.snapshot(watch)
 	c.lastDocker, c.lastDockerAt = b, now
 	return b
 }
